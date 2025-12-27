@@ -297,6 +297,8 @@ function processCalendarFromBookings(
       babies: booking.babies,
       checkInTime: booking.checkInTime,
       checkOutTime: booking.checkOutTime,
+      priceValue: booking.priceValue,
+      priceCurrency: booking.priceCurrency,
     }));
 
     // Sort reservations by start date

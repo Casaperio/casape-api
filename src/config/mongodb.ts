@@ -17,20 +17,24 @@ export async function connectMongoDB(): Promise<Db> {
 
   client = new MongoClient(config.mongodb.uri, {
     // Connection pool settings for performance
-    minPoolSize: 5,           // Keep 5 connections warm
-    maxPoolSize: 20,          // Max connections
-    maxIdleTimeMS: 30000,     // Close idle connections after 30s
+    minPoolSize: 2,           // Reduced pool size
+    maxPoolSize: 10,          // Max connections
+    maxIdleTimeMS: 60000,     // Close idle connections after 60s
 
-    // Timeout settings for faster failure detection
-    serverSelectionTimeoutMS: 5000,  // Fail fast if no server
-    socketTimeoutMS: 30000,          // 30s socket timeout
-    connectTimeoutMS: 10000,         // 10s connection timeout
+    // Timeout settings - increased for better connectivity
+    serverSelectionTimeoutMS: 30000,  // 30s to find server
+    socketTimeoutMS: 45000,           // 45s socket timeout
+    connectTimeoutMS: 30000,          // 30s connection timeout
 
     // Keep-alive for MongoDB Atlas
     heartbeatFrequencyMS: 10000,     // Check connection every 10s
 
     // Compression for faster data transfer
     compressors: ['snappy', 'zlib'],
+    
+    // Retry writes for better reliability
+    retryWrites: true,
+    retryReads: true,
   });
   await client.connect();
   db = client.db(config.mongodb.dbName);

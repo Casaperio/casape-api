@@ -24,6 +24,8 @@ export interface CalendarReservation {
   babies: number;
   checkInTime: string | null;
   checkOutTime: string | null;
+  priceValue: number | null;
+  priceCurrency: string | null;
 }
 
 export interface CalendarUnit {
@@ -123,6 +125,8 @@ export async function getCalendarData(from: string, to: string): Promise<Calenda
       babies: booking.babies,
       checkInTime: booking.checkInTime,
       checkOutTime: booking.checkOutTime,
+      priceValue: booking.priceValue,
+      priceCurrency: booking.priceCurrency,
     }));
 
     // Sort reservations by start date
