@@ -285,6 +285,8 @@ function processCalendarFromBookings(
       id: booking.staysReservationId,
       bookingId: booking.staysBookingCode,
       guestName: booking.guestName,
+      guestEmail: booking.guestEmail,
+      guestPhone: booking.guestPhone,
       type: mapReservationType(booking.type),
       startDate: booking.checkInDate,
       endDate: booking.checkOutDate,

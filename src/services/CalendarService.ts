@@ -12,6 +12,8 @@ export interface CalendarReservation {
   id: string;
   bookingId: string;
   guestName: string;
+  guestEmail: string | null;
+  guestPhone: string | null;
   type: 'reserved' | 'blocked' | 'provisional';
   startDate: string;
   endDate: string;
@@ -113,6 +115,8 @@ export async function getCalendarData(from: string, to: string): Promise<Calenda
       id: booking.staysReservationId,
       bookingId: booking.staysBookingCode,
       guestName: booking.guestName,
+      guestEmail: booking.guestEmail,
+      guestPhone: booking.guestPhone,
       type: mapReservationType(booking.type),
       startDate: booking.checkInDate,
       endDate: booking.checkOutDate,
