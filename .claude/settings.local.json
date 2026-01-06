@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs:*)",
+      "Bash(test:*)",
+      "mcp__serena__search_for_pattern",
+      "mcp__serena__list_dir",
+      "mcp__serena__activate_project",
+      "Bash(npm run build:*)",
+      "mcp__serena__get_symbols_overview",
+      "mcp__serena__find_file",
+      "Bash(cat:*)",
+      "Bash(node check-prices.js:*)",
+      "Bash(node check-gerson.js:*)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill //F //PID 25196)",
+      "Bash(node:*)",
+      "mcp__serena__find_symbol",
+      "Bash(python -m json.tool:*)",
+      "Bash(taskkill //F //PID 32456)",
+      "Bash(npm run dev:*)"
+    ]
+  }
+}

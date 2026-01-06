@@ -285,6 +285,8 @@ function processCalendarFromBookings(
       id: booking.staysReservationId,
       bookingId: booking.staysBookingCode,
       guestName: booking.guestName,
+      guestEmail: booking.guestEmail,
+      guestPhone: booking.guestPhone,
       type: mapReservationType(booking.type),
       startDate: booking.checkInDate,
       endDate: booking.checkOutDate,
@@ -297,6 +299,8 @@ function processCalendarFromBookings(
       babies: booking.babies,
       checkInTime: booking.checkInTime,
       checkOutTime: booking.checkOutTime,
+      priceValue: booking.priceValue,
+      priceCurrency: booking.priceCurrency,
     }));
 
     // Sort reservations by start date

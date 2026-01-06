@@ -1,0 +1,59 @@
+# Dependências
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Variáveis de Ambiente
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+combined.log
+error.log
+
+# Testes
+coverage/
+.nyc_output/
+
+# IDEs e Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Sistema Operacional
+Thumbs.db
+Desktop.ini
+
+# TypeScript
+*.tsbuildinfo
+
+# Temporários
+*.tmp
+*.temp
+.cache/
+
+# Debug
+.pnp.*
+
+# PM2
+.pm2/
+ecosystem.config.js
+
+# Arquivos de teste/debug (opcional)
+test-results/
+playwright-report/

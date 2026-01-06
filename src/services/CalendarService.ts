@@ -12,6 +12,8 @@ export interface CalendarReservation {
   id: string;
   bookingId: string;
   guestName: string;
+  guestEmail: string | null;
+  guestPhone: string | null;
   type: 'reserved' | 'blocked' | 'provisional';
   startDate: string;
   endDate: string;
@@ -24,6 +26,8 @@ export interface CalendarReservation {
   babies: number;
   checkInTime: string | null;
   checkOutTime: string | null;
+  priceValue: number | null;
+  priceCurrency: string | null;
 }
 
 export interface CalendarUnit {
@@ -111,6 +115,8 @@ export async function getCalendarData(from: string, to: string): Promise<Calenda
       id: booking.staysReservationId,
       bookingId: booking.staysBookingCode,
       guestName: booking.guestName,
+      guestEmail: booking.guestEmail,
+      guestPhone: booking.guestPhone,
       type: mapReservationType(booking.type),
       startDate: booking.checkInDate,
       endDate: booking.checkOutDate,
@@ -123,6 +129,8 @@ export async function getCalendarData(from: string, to: string): Promise<Calenda
       babies: booking.babies,
       checkInTime: booking.checkInTime,
       checkOutTime: booking.checkOutTime,
+      priceValue: booking.priceValue,
+      priceCurrency: booking.priceCurrency,
     }));
 
     // Sort reservations by start date
