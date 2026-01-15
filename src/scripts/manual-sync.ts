@@ -4,9 +4,12 @@
  */
 
 import { syncStaysData } from '../services/sync/SyncService.js';
+import { connectMongoDB, closeMongoDB } from '../config/mongodb.js';
 
 async function main() {
   console.log('🔄 Running manual sync...\n');
+
+  await connectMongoDB();
 
   const result = await syncStaysData();
 
@@ -20,10 +23,12 @@ async function main() {
     console.log(`   Error: ${result.error}`);
   }
 
+  await closeMongoDB();
   process.exit(result.success ? 0 : 1);
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
   console.error('❌ Manual sync failed:', error);
+  await closeMongoDB();
   process.exit(1);
 });
