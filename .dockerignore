@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+dist
+.env
+.git
+.gitignore
+*.md
+.DS_Store
+backend.log
+add-test-reservation.ts
+check-*.cjs
+check-*.js
+check-*.ts
+debug-*.ts
+test-*.js
+test-*.ts
+TESTE-RESERVA.md

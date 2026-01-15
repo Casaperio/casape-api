@@ -10,6 +10,18 @@ import { getPlatformColor } from '../config/platformImages.js';
 import { getSyncStatus } from './sync/SyncService.js';
 import type { FirestoreUnifiedBooking, GuestStatus } from './stays/types.js';
 
+/**
+ * Retorna a data de HOJE no timezone do Brasil (America/Sao_Paulo)
+ * Evita problemas com servidores rodando em UTC
+ */
+function getTodayBrazil(): Date {
+  const now = new Date();
+  // Converte para string no formato YYYY-MM-DD usando timezone do Brasil
+  const brazilDateStr = now.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  // Retorna Date com hora zerada (meia-noite)
+  return new Date(brazilDateStr + 'T00:00:00');
+}
+
 // Response types
 export interface DayData {
   date: string;
@@ -115,7 +127,8 @@ function getUniqueListings(bookings: FirestoreUnifiedBooking[]): Map<string, str
  * Generates the dashboard data
  */
 export async function getDashboardData(): Promise<DashboardResponse> {
-  const today = new Date();
+  // Use timezone do Brasil para evitar problemas com servidores em UTC
+  const today = getTodayBrazil();
   const todayStr = format(today, 'yyyy-MM-dd');
 
   // Calculate 7-day range starting from TODAY (not Monday of week)
@@ -155,7 +168,6 @@ export async function getDashboardData(): Promise<DashboardResponse> {
 
     // Normalize day to midnight for consistent date comparison
     const dayAtMidnight = new Date(day);
-    dayAtMidnight.setHours(0, 0, 0, 0);
 
     // Find guests for this day
     const dayGuests: GuestData[] = [];
@@ -163,10 +175,8 @@ export async function getDashboardData(): Promise<DashboardResponse> {
     weekBookings.forEach((booking) => {
       // Parse dates and normalize to midnight for consistent comparison
       const checkInDate = parseISO(booking.checkInDate);
-      checkInDate.setHours(0, 0, 0, 0);
 
       const checkOutDate = parseISO(booking.checkOutDate);
-      checkOutDate.setHours(0, 0, 0, 0);
 
       // Check if booking overlaps with this day
       // A booking is active on a day if: checkInDate <= day <= checkOutDate
