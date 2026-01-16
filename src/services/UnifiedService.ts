@@ -3,7 +3,7 @@
  * Optimizes by fetching data once and processing for both dashboard and calendar
  */
 
-import { format, addDays, addMonths, subDays, subMonths, isWithinInterval, parseISO } from 'date-fns';
+import { format, addDays, subDays, isWithinInterval, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getCollections } from '../config/mongodb.js';
 import { getPlatformColor } from '../config/platformImages.js';
