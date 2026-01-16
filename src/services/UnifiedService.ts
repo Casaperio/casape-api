@@ -61,24 +61,28 @@ function mapReservationType(type: string): 'reserved' | 'blocked' | 'provisional
 
 /**
  * Process dashboard data from bookings
+ * Returns dashboard view with all bookings within the period
+ * Creates day-by-day data for ENTIRE date range (not just 7 days)
  */
 function processDashboardFromBookings(
   allBookings: FirestoreUnifiedBooking[],
   todayStr: string,
-  past30Str: string,
-  future30Str: string
+  rangeStartStr: string,
+  rangeEndStr: string
 ): Omit<DashboardResponse, 'lastSyncAt' | 'syncStatus'> {
   const today = new Date();
+  const rangeStart = parseISO(rangeStartStr);
+  const rangeEnd = parseISO(rangeEndStr);
 
-  // Calculate 7-day range starting from TODAY
-  const weekDays: Date[] = [];
-  for (let i = 0; i < 7; i++) {
-    weekDays.push(addDays(today, i));
+  // Calculate ALL days in the range (not just 7)
+  const allDays: Date[] = [];
+  let currentDay = rangeStart;
+  while (currentDay <= rangeEnd) {
+    allDays.push(new Date(currentDay));
+    currentDay = addDays(currentDay, 1);
   }
-  const weekStart = today;
-  const weekEnd = addDays(weekStart, 6);
-  const weekEndStr = format(weekEnd, 'yyyy-MM-dd');
-  const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+
+  console.log('📅 [DASHBOARD] Processing days:', allDays.length, 'from', rangeStartStr, 'to', rangeEndStr);
 
   // Get unique listings
   const listings = new Map<string, string>();
@@ -90,13 +94,17 @@ function processDashboardFromBookings(
   const totalUnits = listings.size;
 
   // Filter bookings for different calculations
-  const weekBookings = allBookings.filter((b) =>
-    b.checkInDate <= weekEndStr && b.checkOutDate >= weekStartStr && b.type !== 'blocked'
+  const allRangeBookings = allBookings.filter((b) =>
+    b.checkInDate <= rangeEndStr && b.checkOutDate >= rangeStartStr && b.type !== 'blocked'
   );
 
   const todayBookings = allBookings.filter((b) =>
     b.checkInDate <= todayStr && b.checkOutDate >= todayStr && b.type !== 'blocked'
   );
+
+  // Calculate 30-day ranges for stats (keeping these for occupancyStats calculations)
+  const future30Str = format(addDays(today, 30), 'yyyy-MM-dd');
+  const past30Str = format(subDays(today, 30), 'yyyy-MM-dd');
 
   const next30Bookings = allBookings.filter((b) =>
     b.checkInDate <= future30Str && b.checkOutDate >= todayStr && b.type !== 'blocked'
@@ -106,8 +114,8 @@ function processDashboardFromBookings(
     b.checkOutDate >= past30Str && b.checkInDate <= todayStr && b.type !== 'blocked'
   );
 
-  // Build week data
-  const weekData: DayData[] = weekDays.map((day) => {
+  // Build week data for ALL days in range
+  const weekData: DayData[] = allDays.map((day) => {
     const dateStr = format(day, 'yyyy-MM-dd');
     const dayOfWeek = format(day, 'EEE', { locale: ptBR }).toUpperCase();
 
@@ -116,7 +124,7 @@ function processDashboardFromBookings(
 
     const dayGuests: GuestData[] = [];
 
-    weekBookings.forEach((booking) => {
+    allRangeBookings.forEach((booking) => {
       const checkInDate = parseISO(booking.checkInDate);
       checkInDate.setHours(0, 0, 0, 0);
 
@@ -323,6 +331,15 @@ function processCalendarFromBookings(
 /**
  * Gets unified data for the frontend (dashboard + calendar + sync status)
  * Optimized to fetch data once and process for both views
+ * 
+ * @param calendarFrom - Optional start date for calendar range (YYYY-MM-DD)
+ * @param calendarTo - Optional end date for calendar range (YYYY-MM-DD)
+ * 
+ * Default ranges:
+ * - Dashboard: -30 days to +30 days from today
+ * - Calendar: -1 month to +3 months from today
+ * 
+ * When custom dates are provided, they expand the range if needed
  */
 export async function getUnifiedData(
   calendarFrom?: string,
@@ -333,16 +350,20 @@ export async function getUnifiedData(
   const todayStr = format(today, 'yyyy-MM-dd');
 
   // Calculate date ranges
-  const past30Str = format(subDays(today, 30), 'yyyy-MM-dd');
-  const future30Str = format(addDays(today, 30), 'yyyy-MM-dd');
+  // WIDE RANGE: -1 year to +1 year (covers all past and future reservations)
+  const past365Str = format(subDays(today, 365), 'yyyy-MM-dd');
+  const future365Str = format(addDays(today, 365), 'yyyy-MM-dd');
 
-  // Default calendar range: 1 month ago to 3 months ahead
-  const calFrom = calendarFrom || format(subMonths(today, 1), 'yyyy-MM-dd');
-  const calTo = calendarTo || format(addMonths(today, 3), 'yyyy-MM-dd');
+  // Default calendar range: Use wide range if no custom dates provided
+  // When custom dates provided, use them (expands range if needed)
+  const calFrom = calendarFrom || past365Str;
+  const calTo = calendarTo || future365Str;
 
   // Calculate the largest range needed (union of dashboard + calendar ranges)
-  const minDate = calFrom < past30Str ? calFrom : past30Str;
-  const maxDate = calTo > future30Str ? calTo : future30Str;
+  const minDate = calFrom < past365Str ? calFrom : past365Str;
+  const maxDate = calTo > future365Str ? calTo : future365Str;
+
+  console.log('📅 [UNIFIED SERVICE] Date range:', { minDate, maxDate, calendarFrom, calendarTo });
 
   // Fetch all data in ONE query
   const collections = getCollections();
@@ -358,12 +379,14 @@ export async function getUnifiedData(
 
   const bookingsTyped = allBookings as unknown as FirestoreUnifiedBooking[];
 
+  console.log('📊 [UNIFIED SERVICE] Total bookings fetched:', bookingsTyped.length);
+
   // Process data for both dashboard and calendar
   const dashboardData = processDashboardFromBookings(
     bookingsTyped.filter((b) => b.type !== 'blocked'),
     todayStr,
-    past30Str,
-    future30Str
+    minDate,  // Use full range instead of past30Str
+    maxDate   // Use full range instead of future30Str
   );
 
   const calendarData = processCalendarFromBookings(bookingsTyped, calFrom, calTo);
