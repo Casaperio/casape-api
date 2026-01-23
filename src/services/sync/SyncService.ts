@@ -564,7 +564,15 @@ export async function syncStaysData(): Promise<{
     console.log(`📅 Date range: ${fromDate} to ${toDate}`);
 
     // 3. Fetch all bookings from Stays API
+    console.log('📥 Fetching bookings from Stays API...');
     const bookings = await staysApiClient.getAllBookings(fromDate, toDate, 'included');
+    console.log(`📊 [SYNC] Received ${bookings.length} bookings from Stays API`);
+    
+    // Log sample of booking IDs for debugging
+    if (bookings.length > 0) {
+      const sampleIds = bookings.slice(0, 5).map(b => b.id || b._id).join(', ');
+      console.log(`   Sample booking IDs: ${sampleIds}${bookings.length > 5 ? '...' : ''}`);
+    }
 
     if (bookings.length === 0) {
       console.log('ℹ️ No bookings found in date range');
@@ -574,11 +582,15 @@ export async function syncStaysData(): Promise<{
     }
 
     // 4. Fetch detailed booking information
+    console.log('🔍 Fetching detailed booking information...');
     const bookingDetails = await fetchBookingDetails(bookings);
+    console.log(`📊 [SYNC] Fetched details for ${bookingDetails.size} bookings`);
 
     // 5. Get unique listing IDs and fetch listing details
     const listingIds = bookings.map((b) => b._idlisting);
+    console.log(`🏢 Fetching details for ${listingIds.length} unique listings...`);
     const listingDetails = await fetchListingDetails(listingIds);
+    console.log(`📊 [SYNC] Fetched details for ${listingDetails.size} listings`);
 
     // 6. Write listings to MongoDB
     const listingsWritten = await writeListingsToMongo(listingDetails);
@@ -592,7 +604,15 @@ export async function syncStaysData(): Promise<{
     const unifiedWritten = await writeUnifiedBookingsToMongo(bookingDetails, listingDetails);
     console.log(`💾 Wrote ${unifiedWritten} unified bookings to MongoDB`);
 
-    // 9. Update sync status to success
+    // 9. Clean up old bookings outside the sync range
+    console.log('🧹 Cleaning up bookings outside sync range...');
+    const collections = getCollections();
+    const deleteResult = await collections.unifiedBookings.deleteMany({
+      checkOutDate: { $lt: fromDate },
+    });
+    console.log(`🗑️ Removed ${deleteResult.deletedCount} old bookings (checkOut < ${fromDate})`);
+
+    // 10. Update sync status to success
     const durationMs = Date.now() - startTime;
     await updateSyncStatus('success', null, {
       bookingsCount: reservationsWritten,
@@ -601,6 +621,10 @@ export async function syncStaysData(): Promise<{
     });
 
     console.log(`✅ Sync completed in ${durationMs}ms`);
+    console.log(`📊 [SYNC SUMMARY]`);
+    console.log(`   Stays API: ${bookings.length} bookings`);
+    console.log(`   Written to DB: ${unifiedWritten} bookings`);
+    console.log(`   Removed old: ${deleteResult.deletedCount} bookings`);
 
     return {
       success: true,

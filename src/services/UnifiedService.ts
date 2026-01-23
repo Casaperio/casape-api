@@ -32,16 +32,12 @@ export interface UnifiedResponse {
 
 /**
  * Determines guest status based on check-in/out dates relative to a given date
+ * Fixed: Now compares date strings directly without unnecessary parseISO/format
+ * checkIn and checkOut are already in 'YYYY-MM-DD' format from MongoDB
  */
-function getGuestStatus(checkIn: string, checkOut: string, date: Date): GuestStatus {
-  const checkInDate = parseISO(checkIn);
-  const checkOutDate = parseISO(checkOut);
-  const targetDate = format(date, 'yyyy-MM-dd');
-  const checkInStr = format(checkInDate, 'yyyy-MM-dd');
-  const checkOutStr = format(checkOutDate, 'yyyy-MM-dd');
-
-  if (checkInStr === targetDate) return 'checkin';
-  if (checkOutStr === targetDate) return 'checkout';
+function getGuestStatus(checkIn: string, checkOut: string, targetDate: string): GuestStatus {
+  if (checkIn === targetDate) return 'checkin';
+  if (checkOut === targetDate) return 'checkout';
   return 'staying';
 }
 
@@ -132,7 +128,7 @@ function processDashboardFromBookings(
       checkOutDate.setHours(0, 0, 0, 0);
 
       if (isWithinInterval(dayAtMidnight, { start: checkInDate, end: checkOutDate })) {
-        const status = getGuestStatus(booking.checkInDate, booking.checkOutDate, day);
+        const status = getGuestStatus(booking.checkInDate, booking.checkOutDate, dateStr);
 
         dayGuests.push({
           id: booking.staysReservationId,
