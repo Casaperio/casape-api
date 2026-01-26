@@ -78,14 +78,14 @@ export async function runInitialSync(): Promise<void> {
 
   const status = await getSyncStatus();
 
-  // Skip if already running
-  if (status?.status === 'running') {
-    console.log('⏭️ Skipping initial sync: already in progress');
-    return;
-  }
+  // Skip if already running (TEMPORARILY DISABLED FOR TESTING)
+  // if (status?.status === 'running') {
+  //   console.log('⏭️ Skipping initial sync: already in progress');
+  //   return;
+  // }
 
   // Run sync if never synced or last sync was more than interval ago
-  if (status?.status === 'never' || !status?.lastSyncAt) {
+  if (status?.status === 'never' || !status?.lastSyncAt || status?.status === 'running') {
     try {
       const result = await syncStaysData();
       console.log('📊 Initial sync completed:', {

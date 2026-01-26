@@ -255,7 +255,7 @@ async function writeReservationsToMongo(
 
   if (entries.length === 0) return 0;
 
-  const operations = entries.map(([bookingId, booking]) => {
+  const operations = entries.map(([, booking]) => {
     // Get platform from partner or source
     const platform = booking.partner?.name || booking.source || null;
 
@@ -264,7 +264,7 @@ async function writeReservationsToMongo(
 
     return {
       updateOne: {
-        filter: { _id: bookingId } as any,
+        filter: { staysReservationId: booking._id } as any,
         update: {
           $set: {
             staysReservationId: booking._id,
@@ -472,7 +472,7 @@ async function writeUnifiedBookingsToMongo(
 
     return {
       updateOne: {
-        filter: { _id: bookingId } as any,
+        filter: { staysReservationId: booking._id } as any, // Use Stays reservation ID for idempotency
         update: {
           $set: {
             id: booking._id,
@@ -534,6 +534,67 @@ async function writeUnifiedBookingsToMongo(
       },
     };
   });
+
+  // ⚠️ CRITICAL: Before upserting, remove conflicting bookings in same property+period
+  // Optimization: Group bookings by property to reduce MongoDB queries
+  const bookingsByProperty = new Map<string, StaysBooking[]>();
+  for (const [, booking] of bookings.entries()) {
+    const listingId = booking._idlisting;
+    if (!bookingsByProperty.has(listingId)) {
+      bookingsByProperty.set(listingId, []);
+    }
+    bookingsByProperty.get(listingId)!.push(booking);
+  }
+
+  console.log(`🧹 Cleaning conflicting bookings for ${bookingsByProperty.size} properties...`);
+  let conflictsRemoved = 0;
+  
+  // Process only properties that have bookings
+  for (const [listingId, propertyBookings] of bookingsByProperty.entries()) {
+    // Get all existing bookings for this property in one query
+    const existingBookings = await collections.unifiedBookings.find({
+      listingId: listingId,
+    }).toArray();
+    
+    if (existingBookings.length === 0) continue;
+    
+    const conflictIds: any[] = [];
+    
+    // Check each new booking against existing ones
+    for (const newBooking of propertyBookings) {
+      for (const existing of existingBookings) {
+        // Skip if same reservation
+        if (existing.staysReservationId === newBooking._id) continue;
+        
+        // Check date overlap
+        const newStart = new Date(newBooking.checkInDate);
+        const newEnd = new Date(newBooking.checkOutDate);
+        const existStart = new Date(existing.checkInDate);
+        const existEnd = new Date(existing.checkOutDate);
+        
+        const hasOverlap = 
+          (newStart <= existStart && newEnd > existStart) || // New starts during existing
+          (newStart < existEnd && newEnd >= existEnd) ||     // New ends during existing
+          (newStart >= existStart && newEnd <= existEnd);    // New contained in existing
+        
+        if (hasOverlap && !conflictIds.includes(existing._id)) {
+          conflictIds.push(existing._id);
+        }
+      }
+    }
+    
+    if (conflictIds.length > 0) {
+      console.log(`   🗑️ Removing ${conflictIds.length} conflicting booking(s) for listing ${listingId}`);
+      const deleteResult = await collections.unifiedBookings.deleteMany({
+        _id: { $in: conflictIds },
+      });
+      conflictsRemoved += deleteResult.deletedCount;
+    }
+  }
+  
+  if (conflictsRemoved > 0) {
+    console.log(`✅ Removed ${conflictsRemoved} conflicting bookings`);
+  }
 
   const result = await collections.unifiedBookings.bulkWrite(operations as any);
   return result.upsertedCount + result.modifiedCount;
@@ -604,15 +665,7 @@ export async function syncStaysData(): Promise<{
     const unifiedWritten = await writeUnifiedBookingsToMongo(bookingDetails, listingDetails);
     console.log(`💾 Wrote ${unifiedWritten} unified bookings to MongoDB`);
 
-    // 9. Clean up old bookings outside the sync range
-    console.log('🧹 Cleaning up bookings outside sync range...');
-    const collections = getCollections();
-    const deleteResult = await collections.unifiedBookings.deleteMany({
-      checkOutDate: { $lt: fromDate },
-    });
-    console.log(`🗑️ Removed ${deleteResult.deletedCount} old bookings (checkOut < ${fromDate})`);
-
-    // 10. Update sync status to success
+    // 9. Update sync status to success
     const durationMs = Date.now() - startTime;
     await updateSyncStatus('success', null, {
       bookingsCount: reservationsWritten,
@@ -624,7 +677,6 @@ export async function syncStaysData(): Promise<{
     console.log(`📊 [SYNC SUMMARY]`);
     console.log(`   Stays API: ${bookings.length} bookings`);
     console.log(`   Written to DB: ${unifiedWritten} bookings`);
-    console.log(`   Removed old: ${deleteResult.deletedCount} bookings`);
 
     return {
       success: true,

@@ -54,6 +54,12 @@ async function createIndexes(): Promise<void> {
   if (!db) return;
 
   try {
+    // ⚠️ CRITICAL: Unique index on staysReservationId prevents duplicates
+    await db.collection('stays_unified_bookings').createIndex(
+      { staysReservationId: 1 },
+      { unique: true, background: true }
+    );
+
     // Index for unified_bookings - optimizes date range queries
     await db.collection('stays_unified_bookings').createIndex(
       { checkOutDate: 1, checkInDate: 1 },
@@ -70,6 +76,12 @@ async function createIndexes(): Promise<void> {
     await db.collection('stays_unified_bookings').createIndex(
       { checkInDate: 1, priceValue: 1 },
       { background: true }
+    );
+
+    // ⚠️ CRITICAL: Unique index on staysReservationId prevents duplicates
+    await db.collection('stays_reservations').createIndex(
+      { staysReservationId: 1 },
+      { unique: true, background: true }
     );
 
     // Index for reservations - optimizes date range queries
