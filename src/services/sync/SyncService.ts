@@ -375,6 +375,67 @@ function extractGuestName(booking: StaysBooking, debug = false): string {
   return 'Hóspede';
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function normalizeEmail(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return EMAIL_REGEX.test(trimmed) ? trimmed : null;
+}
+
+function normalizePhone(value: unknown): string | null {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+
+  const digits = trimmed.replace(/[^\d+]/g, '');
+  const digitCount = digits.replace('+', '').length;
+  if (digitCount < 8 || digitCount > 15) return null;
+  return trimmed;
+}
+
+function extractGuestEmail(booking: StaysBooking): string | null {
+  const guestsList = booking.guestsDetails?.list;
+  const primaryEmail = guestsList?.find(g => g.primary && g.email)?.email;
+  const listEmail = guestsList?.find(g => g.email)?.email;
+
+  const candidates = [
+    booking.guestsDetails?.email,
+    (booking.guestsDetails as any)?.guestEmail,
+    primaryEmail,
+    listEmail,
+    (booking as any).contact?.email,
+    (booking as any).email,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeEmail(candidate);
+    if (normalized) return normalized;
+  }
+
+  return null;
+}
+
+function extractGuestPhone(booking: StaysBooking): string | null {
+  const candidates = [
+    booking.guestsDetails?.phone,
+    (booking.guestsDetails as any)?.phoneNumber,
+    (booking.guestsDetails as any)?.telephone,
+    (booking.guestsDetails as any)?.contactPhone,
+    (booking as any).contact?.phone,
+    (booking as any).phone,
+    (booking as any).phoneNumber,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizePhone(candidate);
+    if (normalized) return normalized;
+  }
+
+  return null;
+}
+
 /**
  * Get platform image path
  */
@@ -463,6 +524,9 @@ async function writeUnifiedBookingsToMongo(
       console.log(`   🎯 Extracted guestName: "${guestName}"`);
     }
 
+    const guestEmail = extractGuestEmail(booking);
+    const guestPhone = extractGuestPhone(booking);
+
     // Calculate guest count
     const guestCount = booking.guests ||
       (booking.stats?.adults || 0) + (booking.stats?.children || 0) + (booking.stats?.babies || 0) || 0;
@@ -509,8 +573,8 @@ async function writeUnifiedBookingsToMongo(
             guestCountry: null,
             guestLanguage: null,
             guestNationality: null,
-            guestEmail: null,
-            guestPhone: null,
+            guestEmail,
+            guestPhone,
 
             // Platform/Source
             platform,
